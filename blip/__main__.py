@@ -5,11 +5,12 @@ parser = argparse.ArgumentParser("blip")
 parser.add_argument("--check", type=str, help="Run checks in module")
 argv = parser.parse_args(sys.argv[1:])
 
-import blip.isa.enums
-import blip.isa.insts
-import blip.verification as verification
-
 if argv.check:
+    import blip.isa.enums
+    import blip.isa.insts
+    import blip.isa.emu
+    import blip.verification as verification
+
     for check in verification.all_checks:
         if not check.name.startswith(argv.check): continue
         print(f"{check.name}: ", end="", flush=True)

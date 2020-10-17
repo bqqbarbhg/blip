@@ -1,4 +1,4 @@
-from enum import IntEnum
+from enum import IntEnum, IntFlag
 
 class Reg(IntEnum):
     A  = 0x0
@@ -38,3 +38,9 @@ class Cond(IntEnum):
     A = 0x5
     L = 0x6
     G = 0x7
+
+class Flags(IntFlag):
+    C = 0x1
+    Z = 0x2
+    O = 0x4
+    S = 0x8

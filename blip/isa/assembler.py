@@ -527,6 +527,7 @@ def disassemble_section(section: Section, indent:int=2) -> str:
                         signed_imm = blip.to_signed(imm, imm_bits)
                     else:
                         signed_imm = arg_bits
+                    signed_imm *= inst.imm_scale
                     
                     imm_str = str(signed_imm)
 
