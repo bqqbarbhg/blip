@@ -338,3 +338,9 @@ def check_strlen():
     """
     emu = assemble_and_run(src)
     assert emu.regs[Reg.X] == 12
+
+@blip.check
+def check_sar():
+    for n in range(32):
+        res, flags = eval_alu(AluOp.SAR, 0x8000_0000, n)
+        assert res == ((-0x8000_0000 >> n) & 0xffff_ffff)
