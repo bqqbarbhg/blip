@@ -86,16 +86,16 @@ def eval_alu(op: AluOp, a: int, b: int) -> (int, Flags):
     elif op == AluOp.XOR: r = a ^ b
     elif op == AluOp.SHL: r = (a << min(b, 32))
     elif op == AluOp.SHR: r = (a >> min(b, 32))
-    elif op == AluOp.SAR: r = ((word << 32 | a) >> min(b, 32))
+    elif op == AluOp.SAR: r = (((0 - (a & 0x8000_0000)) | a) >> min(b, 32))
     elif op == AluOp.MUL: r = a * b
     elif op == AluOp.ADD: r = a + b
-    f = 0
 
+    f = 0
     if (r & word) == 0: f |= ZF
     if op == AluOp.ADD or op == AluOp.SUB:
-        if r >= 0x1_0000_0000: flags |= CF
-        if ((~(a^b)) & (a^r)) & 0x8000_0000: OF
-        if r & 0x8000_0000: flags |= SF
+        if r >= 0x1_0000_0000: f |= CF
+        if ((~(a^b)) & (a^r)) & 0x8000_0000: f |= OF
+        if r & 0x8000_0000: f |= SF
 
     return (r & word), Flags(f)
 

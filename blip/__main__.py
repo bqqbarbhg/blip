@@ -9,6 +9,8 @@ if argv.check:
     import blip.isa.enums
     import blip.isa.insts
     import blip.isa.emu
+    import blip.rtl.alu
+    import blip.rtl.alu_ideal
     import blip.verification as verification
 
     for check in verification.all_checks:
