@@ -41,8 +41,10 @@ def check_alu_ideal():
 
     fixtures = set([0, 1, 2, 100, 0xaaaa_aaaa, 0x00001000, 0x8000_0000, 0xffff_fffe, 0xffff_ffff])
     fixtures = list(sorted(fixtures))
+    num_checks = 0
 
     def process():
+        nonlocal num_checks
         for op in isa.AluOp:
             yield alu.op.eq(op)
             for a in fixtures:
@@ -53,7 +55,10 @@ def check_alu_ideal():
                     ref_out, ref_flags = isa.emu.eval_alu(op, a, b)
                     out = yield alu.out
                     assert out == ref_out
+                    num_checks += 1
 
     sim.add_process(process)
     sim.run()
+
+    blip.info(f"Checked {num_checks} inputs")
 
