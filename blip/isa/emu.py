@@ -58,11 +58,13 @@ class Emulator:
         self.pc += 2
 
         for bit_mask, inst_map in self.emu_map:
-            inst = inst_map.get(bits & bit_mask)
-            if inst: break
+            pair = inst_map.get(bits & bit_mask)
+            if pair: break
         else:
             raise BadInstructionError()
-        inst(self, bits)
+
+        inst, imp = pair
+        imp(self, bits)
 
         if (bits & 0xc000) != 0x4000:
             self.imm = 0
@@ -99,14 +101,14 @@ def eval_alu(op: AluOp, a: int, b: int) -> (int, Flags):
 
 def eval_cond(cond: Cond, flags: Flags) -> bool:
     f = int(flags)
-    if c == 0x0: ok = True
-    elif c == 0x1: ok = (f & ZF) != 0
-    elif c == 0x2: ok = (f & CF) != 0
-    elif c == 0x3: ok = (f & OF) != 0
-    elif c == 0x4: ok = (f & SF) != 0
-    elif c == 0x5: ok = (f & (SF|ZF)) == 0
-    elif c == 0x6: ok = ((f^((f&SF)<<1))&(ZF|OF)) == 0
-    elif c == 0x7: ok = ((f^((f&SF)<<1))&(OF)) != 0
+    if cond == Cond.T:   ok = True
+    elif cond == Cond.Z: ok = (f & ZF) != 0
+    elif cond == Cond.C: ok = (f & CF) != 0
+    elif cond == Cond.O: ok = (f & OF) != 0
+    elif cond == Cond.F: ok = (f & SF) != 0
+    elif cond == Cond.A: ok = (f & (SF|ZF)) == 0
+    elif cond == Cond.L: ok = ((f & SF) != 0) != ((f & OF) != 0)
+    elif cond == Cond.G: ok = ((f & ZF) == 0) and ((f & SF) != 0) == ((f & OF) != 0)
     return ok
 
 @cache
@@ -155,7 +157,7 @@ def init_emu_insts():
         format_map = emu_map.setdefault(inst.bit_mask, {})
         assert inst.bit_set not in format_map
         imp = emu_exec_nary[len(fmt)](inst, func)
-        format_map[inst.bit_set] = imp
+        format_map[inst.bit_set] = (inst, imp)
 
     def emu_imm_v(emu, v):
         emu.imm = (emu.imm << 14) | v
@@ -193,9 +195,9 @@ def init_emu_insts():
     def emu_cmpi(emu, op, r, v):
         _, emu.flags = eval_alu(op, emu.regs[r], emu.get_imm(v))
 
-    def emu_bcc(emu, ref, cond, r, v):
+    def emu_bcc(emu, ref, cond, v):
         if eval_cond(cond, emu.flags) == ref:
-            emu.pc = (self.pc + emu.eval_imm(v, 8)) & 0xffff_ffff
+            emu.pc = (emu.pc + emu.get_imm(v, 8)*2) & 0xffff_ffff
 
     def emu_mov(emu, d, v):
         emu.regs[d] = emu.get_imm(v, 4)
@@ -210,7 +212,7 @@ def init_emu_insts():
 
     def emu_bsri(emu, v):
         emu.regs[Reg.LR] = emu.pc
-        emu.pc = (self.pc + emu.get_imm(v)) & 0xffff_ffff
+        emu.pc = (emu.pc + emu.get_imm(v)) & 0xffff_ffff
 
     def emu_bra(emu, r):
         emu.pc = emu.regs[r]
@@ -248,22 +250,22 @@ def init_emu_insts():
     inst("sar", "rv", lambda emu,d,v: emu_alui(emu, AluOp.SAR, d, d, v))
     inst("mul", "rr", lambda emu,d,s: emu_alu(emu, AluOp.MUL, d, d, s))
     inst("mul", "rv", lambda emu,d,v: emu_alui(emu, AluOp.MUL, d, d, v))
-    inst("jnt", "v", lambda emu,v: emu_bcc(emu, False, Cond.T, v))
-    inst("jt", "v", lambda emu,v: emu_bcc(emu, True, Cond.T, v))
-    inst("jnz", "v", lambda emu,v: emu_bcc(emu, False, Cond.Z, v))
-    inst("jz", "v", lambda emu,v: emu_bcc(emu, True, Cond.Z, v))
-    inst("jnc", "v", lambda emu,v: emu_bcc(emu, False, Cond.C, v))
-    inst("jc", "v", lambda emu,v: emu_bcc(emu, True, Cond.C, v))
-    inst("jno", "v", lambda emu,v: emu_bcc(emu, False, Cond.O, v))
-    inst("jo", "v", lambda emu,v: emu_bcc(emu, True, Cond.O, v))
-    inst("jns", "v", lambda emu,v: emu_bcc(emu, False, Cond.S, v))
-    inst("js", "v", lambda emu,v: emu_bcc(emu, True, Cond.S, v))
-    inst("jna", "v", lambda emu,v: emu_bcc(emu, False, Cond.A, v))
-    inst("ja", "v", lambda emu,v: emu_bcc(emu, True, Cond.A, v))
-    inst("jnl", "v", lambda emu,v: emu_bcc(emu, False, Cond.L, v))
-    inst("jl", "v", lambda emu,v: emu_bcc(emu, True, Cond.L, v))
-    inst("jng", "v", lambda emu,v: emu_bcc(emu, False, Cond.G, v))
-    inst("jg", "v", lambda emu,v: emu_bcc(emu, True, Cond.G, v))
+    inst("bnt", "v", lambda emu,v: emu_bcc(emu, False, Cond.T, v))
+    inst("bt", "v", lambda emu,v: emu_bcc(emu, True, Cond.T, v))
+    inst("bnz", "v", lambda emu,v: emu_bcc(emu, False, Cond.Z, v))
+    inst("bz", "v", lambda emu,v: emu_bcc(emu, True, Cond.Z, v))
+    inst("bnc", "v", lambda emu,v: emu_bcc(emu, False, Cond.C, v))
+    inst("bc", "v", lambda emu,v: emu_bcc(emu, True, Cond.C, v))
+    inst("bno", "v", lambda emu,v: emu_bcc(emu, False, Cond.O, v))
+    inst("bo", "v", lambda emu,v: emu_bcc(emu, True, Cond.O, v))
+    inst("bns", "v", lambda emu,v: emu_bcc(emu, False, Cond.S, v))
+    inst("bs", "v", lambda emu,v: emu_bcc(emu, True, Cond.S, v))
+    inst("bna", "v", lambda emu,v: emu_bcc(emu, False, Cond.A, v))
+    inst("ba", "v", lambda emu,v: emu_bcc(emu, True, Cond.A, v))
+    inst("bnl", "v", lambda emu,v: emu_bcc(emu, False, Cond.L, v))
+    inst("bl", "v", lambda emu,v: emu_bcc(emu, True, Cond.L, v))
+    inst("bng", "v", lambda emu,v: emu_bcc(emu, False, Cond.G, v))
+    inst("bg", "v", lambda emu,v: emu_bcc(emu, True, Cond.G, v))
     inst("cmp", "rr", lambda emu,r,s: emu_cmp(emu, AluOp.SUB, r, s))
     inst("cmp", "rv", lambda emu,r,v: emu_cmpi(emu, AluOp.SUB, r, v))
     inst("tst", "rr", lambda emu,r,s: emu_cmp(emu, AluOp.AND, r, s))
@@ -314,3 +316,25 @@ def check_simple():
     assert emu.regs[Reg.X] == 1
     assert emu.regs[Reg.Y] == 2
     assert emu.regs[Reg.Z] == 3
+
+@blip.check
+def check_strlen():
+    src = """
+        apc X, message
+        bsr strlen
+        sys 1
+    strlen:
+        mov Y, X
+        sub X, 1
+    _loop:
+        add X, 1
+        ldb Z, X
+        tst Z, -1
+        bnz _loop
+        sub X, Y
+        ret
+    message:
+        .asciz "Hello World!"
+    """
+    emu = assemble_and_run(src)
+    assert emu.regs[Reg.X] == 12
