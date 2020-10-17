@@ -34,7 +34,7 @@ class AluIdeal(rtl.AluInterface):
         return m
 
 @blip.check
-def check_alu_ideal():
+def check_fixtures():
     m = Module()
     m.submodules.alu = alu = AluIdeal()
     sim = Simulator(m)
