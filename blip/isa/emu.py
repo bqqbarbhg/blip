@@ -337,6 +337,37 @@ def check_simple():
     assert emu.regs[Reg.Z] == 3
 
 @blip.check
+def check_muli_simple():
+    src = """
+        mov A, 2
+        mov B, 3
+        muli A, B
+        ext B
+        mov C, -4
+        mov D, 5
+        muli C, D
+        ext D
+        mov X, 6
+        mov Y, -7
+        muli X, Y
+        ext Y
+        mov Z, -8
+        mov W, -9
+        muli Z, W
+        ext W
+        sys 1
+    """
+    emu = assemble_and_run(src)
+    assert emu.regs[Reg.A] == 6
+    assert emu.regs[Reg.B] == 0
+    assert emu.regs[Reg.C] == -20 & 0xffff_ffff
+    assert emu.regs[Reg.D] == 0xffff_ffff
+    assert emu.regs[Reg.X] == -42 & 0xffff_ffff
+    assert emu.regs[Reg.Y] == 0xffff_ffff
+    assert emu.regs[Reg.Z] == 72
+    assert emu.regs[Reg.W] == 0
+
+@blip.check
 def check_strlen():
     src = """
         apc X, message
@@ -417,6 +448,26 @@ def check_mul_u64():
             ref_lo = (x * y) & 0xffff_ffff
             ref_hi = (x * y) >> 32
             assert ref_hi <= 0xffff_ffff
+            assert emu.regs[Reg.X] == ref_lo
+            assert emu.regs[Reg.Y] == ref_hi
+
+@blip.check
+def check_mul_i64():
+    src = """
+        muli X, Y
+        ext Y
+        sys 1
+    """
+    binary, pc = assemble_and_link(src)
+    for x in blip.gen_fixtures(32, 200, 2):
+        for y in blip.gen_fixtures(32, 50, 2):
+            emu = run_binary(binary, pc, regs={
+                Reg.X: x,
+                Reg.Y: y,
+            })
+            ref = blip.to_signed(x, 32) * blip.to_signed(y, 32)
+            ref_lo = ref & 0xffff_ffff
+            ref_hi = ref >> 32 & 0xffff_ffff
             assert emu.regs[Reg.X] == ref_lo
             assert emu.regs[Reg.Y] == ref_hi
 
