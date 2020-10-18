@@ -78,6 +78,6 @@ def run_check(check: Check) -> CheckResult:
     check.func()
     end = time.perf_counter()
     duration = end - begin
-    info_lines = info_lines
+    lines = info_lines
     info_lines = []
-    return CheckResult(name=check.name, duration=duration, info_lines=info_lines)
+    return CheckResult(name=check.name, duration=duration, info_lines=lines)
