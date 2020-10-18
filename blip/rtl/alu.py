@@ -8,6 +8,7 @@ class AluInterface(Elaboratable):
         self.a = Signal(32)
         self.b = Signal(32)
         self.out = Signal(32)
+        self.ext_out = Signal(32)
         self.busy = Signal()
         self.flags = Signal(isa.Flags)
 

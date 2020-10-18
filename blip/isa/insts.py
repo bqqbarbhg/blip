@@ -56,7 +56,7 @@ class Inst:
 
     def name_with_args(self) -> str:
         if self.args:
-            args = ", ".join(self.args)
+            args = ", ".join(a.name for a in self.args)
             return f"{self.name} {args}"
         else:
             return self.name
@@ -75,6 +75,8 @@ insts = [
     Inst("1100 0101 dddd ssss", "shr d s"),
     Inst("1100 0110 dddd ssss", "sar d s"),
     Inst("1100 0111 dddd ssss", "mul d s"),
+    Inst("1100 1000 dddd ssss", "muli d s"),
+    Inst("1100 1001 dddd ssss", "div d s"),
     Inst("1101 0000 dddd vvvv", "sub d v"),
     Inst("1101 0001 dddd vvvv", "and d v"),
     Inst("1101 0010 dddd vvvv", "or d v"),
@@ -83,6 +85,8 @@ insts = [
     Inst("1101 0101 dddd vvvv", "shr d v"),
     Inst("1101 0110 dddd vvvv", "sar d v"),
     Inst("1101 0111 dddd vvvv", "mul d v"),
+    Inst("1101 1000 dddd vvvv", "muli d v"),
+    Inst("1101 1001 dddd vvvv", "div d v"),
     Inst("1110 0000 vvvv vvvv", "bnt v", imm_scale=2, imm_relative=True),
     Inst("1110 0001 vvvv vvvv", "bt v",  imm_scale=2, imm_relative=True),
     Inst("1110 0010 vvvv vvvv", "bnz v", imm_scale=2, imm_relative=True),
@@ -109,6 +113,9 @@ insts = [
     Inst("1111 0111 dddd ssss", "sth d s"),
     Inst("1111 1000 dddd vvvv", "mov d v"),
     Inst("1111 1001 dddd vvvv", "apc d v", imm_relative=True),
+    Inst("1111 1010 dddd 0000", "ext d"),
+    # Inst("1111 1001 dddd 0001", "clz d v"), # maybe
+    # Inst("1111 1001 dddd 0010", "ctz d v"), # maybe
     Inst("1111 1111 0000 rrrr", "bsr r"),
     Inst("1111 1111 0001 vvvv", "bsr v", imm_relative=True),
     Inst("1111 1111 0010 rrrr", "bra r"),

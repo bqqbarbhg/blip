@@ -22,13 +22,17 @@ class AluIdeal(rtl.AluInterface):
             with m.Case(isa.AluOp.XOR):
                 m.d.comb += self.out.eq(self.a ^ self.b)
             with m.Case(isa.AluOp.SHL):
-                m.d.comb += self.out.eq(self.a << self.b)
+                m.d.comb += self.out.eq(self.a << (self.b & 31))
             with m.Case(isa.AluOp.SHR):
-                m.d.comb += self.out.eq(self.a >> self.b)
+                m.d.comb += self.out.eq(self.a >> (self.b & 31))
             with m.Case(isa.AluOp.SAR):
-                m.d.comb += self.out.eq(self.a.as_signed() >> self.b)
+                m.d.comb += self.out.eq(self.a.as_signed() >> (self.b & 31))
             with m.Case(isa.AluOp.MUL):
                 m.d.comb += self.out.eq(self.a * self.b)
+            with m.Case(isa.AluOp.MULI):
+                m.d.comb += self.out.eq(self.a.as_signed() * self.b.as_signed())
+            with m.Case(isa.AluOp.DIV):
+                m.d.comb += self.out.eq(self.a // self.b)
             with m.Case(isa.AluOp.ADD):
                 m.d.comb += self.out.eq(self.a + self.b)
         return m
@@ -39,20 +43,19 @@ def check_fixtures():
     m.submodules.alu = alu = AluIdeal()
     sim = Simulator(m)
 
-    fixtures = set([0, 1, 2, 100, 0xaaaa_aaaa, 0x00001000, 0x8000_0000, 0xffff_fffe, 0xffff_ffff])
-    fixtures = list(sorted(fixtures))
     num_checks = 0
 
     def process():
         nonlocal num_checks
         for op in isa.AluOp:
             yield alu.op.eq(op)
-            for a in fixtures:
+            for a in blip.gen_fixtures(32, 24):
                 yield alu.a.eq(a)
-                for b in fixtures:
+                for b in blip.gen_fixtures(32, 12):
+                    if op == isa.AluOp.DIV and b == 0: continue
                     yield alu.b.eq(b)
                     yield Delay(1e-9)
-                    ref_out, ref_flags = isa.emu.eval_alu(op, a, b)
+                    ref_out, ref_ext, ref_flags = isa.emu.eval_alu(op, a, b)
                     out = yield alu.out
                     assert out == ref_out
                     num_checks += 1

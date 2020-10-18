@@ -15,6 +15,7 @@ class Emulator:
         self.memory = memory
         self.imm = 0
         self.imm_bits = 0
+        self.ext = 0
         self.pc = pc
         self.regs = [0] * 16
         self.flags = Flags(0)
@@ -75,7 +76,7 @@ ZF = int(Flags.Z)
 SF = int(Flags.S)
 OF = int(Flags.O)
 
-def eval_alu(op: AluOp, a: int, b: int) -> (int, Flags):
+def eval_alu(op: AluOp, a: int, b: int) -> (int, int, Flags):
     word = 0xffff_ffff
     assert a <= word
     assert b <= word
@@ -84,10 +85,12 @@ def eval_alu(op: AluOp, a: int, b: int) -> (int, Flags):
     elif op == AluOp.AND: r = a & b
     elif op == AluOp.OR:  r = a | b
     elif op == AluOp.XOR: r = a ^ b
-    elif op == AluOp.SHL: r = (a << min(b, 32))
-    elif op == AluOp.SHR: r = (a >> min(b, 32))
-    elif op == AluOp.SAR: r = (((0 - (a & 0x8000_0000)) | a) >> min(b, 32))
+    elif op == AluOp.SHL: r = (a << (b % 32))
+    elif op == AluOp.SHR: r = (a >> (b % 32)) | ((a << ((32 - b) % 32)) << 32)
+    elif op == AluOp.SAR: r = (((0 - (a & 0x8000_0000)) | a) >> (b % 32))
     elif op == AluOp.MUL: r = a * b
+    elif op == AluOp.MULI: r = (blip.to_signed(a, 32) * blip.to_signed(b, 32)) & 0xffff_ffff_ffff_ffff
+    elif op == AluOp.DIV: r = ((a // b) & word) | (a % b) << 32
     elif op == AluOp.ADD: r = a + b
 
     f = 0
@@ -97,7 +100,7 @@ def eval_alu(op: AluOp, a: int, b: int) -> (int, Flags):
         if ((~(a^b)) & (a^r)) & 0x8000_0000: f |= OF
         if r & 0x8000_0000: f |= SF
 
-    return (r & word), Flags(f)
+    return (r & word), ((r >> 32) & word), Flags(f)
 
 def eval_cond(cond: Cond, flags: Flags) -> bool:
     f = int(flags)
@@ -184,16 +187,16 @@ def init_emu_insts():
         emu.load(emu.regs[r], emu.regs[d], 2)
 
     def emu_alu(emu, op, d, r, s):
-        emu.regs[d], emu.flags = eval_alu(op, emu.regs[r], emu.regs[s])
+        emu.regs[d], emu.ext, emu.flags = eval_alu(op, emu.regs[r], emu.regs[s])
 
     def emu_alui(emu, op, d, r, v):
-        emu.regs[d], emu.flags = eval_alu(op, emu.regs[r], emu.get_imm(v))
+        emu.regs[d], emu.ext, emu.flags = eval_alu(op, emu.regs[r], emu.get_imm(v))
 
     def emu_cmp(emu, op, r, s):
-        _, emu.flags = eval_alu(op, emu.regs[r], emu.regs[s])
+        _, _, emu.flags = eval_alu(op, emu.regs[r], emu.regs[s])
 
     def emu_cmpi(emu, op, r, v):
-        _, emu.flags = eval_alu(op, emu.regs[r], emu.get_imm(v))
+        _, _, emu.flags = eval_alu(op, emu.regs[r], emu.get_imm(v))
 
     def emu_bcc(emu, ref, cond, v):
         if eval_cond(cond, emu.flags) == ref:
@@ -204,6 +207,9 @@ def init_emu_insts():
 
     def emu_apc(emu, d, v):
         emu.regs[d] = (emu.pc + emu.get_imm(v)) & 0xffff_ffff
+
+    def emu_ext(emu, d):
+        emu.regs[d] = emu.ext
 
     def emu_bsr(emu, r):
         reg = emu.regs[r]
@@ -250,6 +256,10 @@ def init_emu_insts():
     inst("sar", "rv", lambda emu,d,v: emu_alui(emu, AluOp.SAR, d, d, v))
     inst("mul", "rr", lambda emu,d,s: emu_alu(emu, AluOp.MUL, d, d, s))
     inst("mul", "rv", lambda emu,d,v: emu_alui(emu, AluOp.MUL, d, d, v))
+    inst("muli", "rr", lambda emu,d,s: emu_alu(emu, AluOp.MULI, d, d, s))
+    inst("muli", "rv", lambda emu,d,v: emu_alui(emu, AluOp.MULI, d, d, v))
+    inst("div", "rr", lambda emu,d,s: emu_alu(emu, AluOp.DIV, d, d, s))
+    inst("div", "rv", lambda emu,d,v: emu_alui(emu, AluOp.DIV, d, d, v))
     inst("bnt", "v", lambda emu,v: emu_bcc(emu, False, Cond.T, v))
     inst("bt", "v", lambda emu,v: emu_bcc(emu, True, Cond.T, v))
     inst("bnz", "v", lambda emu,v: emu_bcc(emu, False, Cond.Z, v))
@@ -276,6 +286,7 @@ def init_emu_insts():
     inst("sth", "rr", emu_sth)
     inst("mov", "rv", emu_mov)
     inst("apc", "rv", emu_apc)
+    inst("ext", "r", emu_ext)
     inst("bsr", "r", emu_bsr)
     inst("bsr", "v", emu_bsri)
     inst("bra", "r", emu_bra)
@@ -286,16 +297,21 @@ def init_emu_insts():
 
     return list(emu_map.items())
 
-def assemble_and_run(source, max_steps=0x10000, ram_size=0x10000):
+def assemble_and_link(source):
     obj = blip.isa.assemble(source)
     binary = blip.isa.link([obj])
-    memory = binary.data + bytes(ram_size)
     pc = 0
     for sym in binary.symbols:
         if sym == "main":
             pc = sym.offset
             break
+    return binary, pc
+
+def run_binary(binary, pc, max_steps=0x10000, ram_size=0x10000, regs={}):
+    memory = binary.data + bytes(ram_size)
     emu = Emulator(memory, pc)
+    for k,v in regs.items():
+        emu.regs[k] = v
     for n in range(max_steps):
         emu.step()
         if emu.stop: break
@@ -303,6 +319,9 @@ def assemble_and_run(source, max_steps=0x10000, ram_size=0x10000):
         raise RuntimeError("Program did not halt")
     return emu
 
+def assemble_and_run(source, max_steps=0x10000, ram_size=0x10000, regs={}):
+    binary, pc = assemble_and_link(source)
+    return run_binary(binary, pc, max_steps, ram_size, regs)
 
 @blip.check
 def check_simple():
@@ -342,5 +361,107 @@ def check_strlen():
 @blip.check
 def check_sar():
     for n in range(32):
-        res, flags = eval_alu(AluOp.SAR, 0x8000_0000, n)
+        res, _, flags = eval_alu(AluOp.SAR, 0x8000_0000, n)
         assert res == ((-0x8000_0000 >> n) & 0xffff_ffff)
+
+@blip.check
+def check_rotl():
+    src = """
+        shl X, Y
+        ext T
+        or X, T
+        sys 1
+    """
+    binary, pc = assemble_and_link(src)
+    for x in blip.gen_fixtures(32, 200):
+        for y in range(33):
+            emu = run_binary(binary, pc, regs={
+                Reg.X: x,
+                Reg.Y: y,
+            })
+            ref = ((x << y) | (x >> (32 - y))) & 0xffff_ffff
+            assert emu.regs[Reg.X] == ref
+
+@blip.check
+def check_rotr():
+    src = """
+        shr X, Y
+        ext T
+        or X, T
+        sys 1
+    """
+    binary, pc = assemble_and_link(src)
+    for x in blip.gen_fixtures(32, 200):
+        for y in range(33):
+            emu = run_binary(binary, pc, regs={
+                Reg.X: x,
+                Reg.Y: y,
+            })
+            ref = ((x >> y) | (x << (32 - y))) & 0xffff_ffff
+            assert emu.regs[Reg.X] == ref
+
+@blip.check
+def check_mul_u64():
+    src = """
+        mul X, Y
+        ext Y
+        sys 1
+    """
+    binary, pc = assemble_and_link(src)
+    for x in blip.gen_fixtures(32, 200):
+        for y in blip.gen_fixtures(32, 50):
+            emu = run_binary(binary, pc, regs={
+                Reg.X: x,
+                Reg.Y: y,
+            })
+            ref_lo = (x * y) & 0xffff_ffff
+            ref_hi = (x * y) >> 32
+            assert ref_hi <= 0xffff_ffff
+            assert emu.regs[Reg.X] == ref_lo
+            assert emu.regs[Reg.Y] == ref_hi
+
+@blip.check
+def check_add_u64():
+    src = """
+        add X, X, Y
+        ext T
+        add Y, Z, W
+        add Y, T
+        sys 1
+    """
+    binary, pc = assemble_and_link(src)
+    for ox in blip.gen_fixtures(32, 200):
+        for oy in blip.gen_fixtures(32, 50):
+            x = ox << 16
+            y = oy << 16
+            assert x <= 0xffff_ffff_ffff_ffff
+            assert y <= 0xffff_ffff_ffff_ffff
+            emu = run_binary(binary, pc, regs={
+                Reg.X: x & 0xffff_ffff,
+                Reg.Y: y & 0xffff_ffff,
+                Reg.Z: x >> 32,
+                Reg.W: y >> 32,
+            })
+            ref_lo = (x + y) & 0xffff_ffff
+            ref_hi = (x + y) >> 32
+            assert ref_hi <= 0xffff_ffff
+            assert emu.regs[Reg.X] == ref_lo
+            assert emu.regs[Reg.Y] == ref_hi
+
+@blip.check
+def check_divmod():
+    src = """
+        div X, Y
+        ext Y
+        sys 1
+    """
+    binary, pc = assemble_and_link(src)
+    for x in blip.gen_fixtures(32, 200):
+        for y in blip.gen_fixtures(32, 50):
+            if y == 0: continue
+            emu = run_binary(binary, pc, regs={
+                Reg.X: x,
+                Reg.Y: y,
+            })
+            assert emu.regs[Reg.X] == (x // y)
+            assert emu.regs[Reg.Y] == (x % y)
