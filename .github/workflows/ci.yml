@@ -29,4 +29,4 @@ jobs:
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
     - name: Run checks
       run: |
-        python -m blip --check blip --fixtures 2 -j0
+        python -m blip --check blip --fixtures 4 -j0

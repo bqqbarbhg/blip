@@ -24,8 +24,8 @@ def divide_serial_uu(a: int, b: int) -> (int, int):
 
 @blip.check
 def check_simple_divide_uu():
-    for a in blip.gen_fixtures(32, 500):
-        for b in blip.gen_fixtures(32, 100):
+    for a in blip.gen_fixtures(32, 500, 2):
+        for b in blip.gen_fixtures(32, 100, 2):
             if b == 0: continue
             q, r = divide_serial_uu(a, b)
             assert q == a // b

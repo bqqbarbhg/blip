@@ -38,9 +38,9 @@ def gen_fixtures32() -> Iterator[int]:
         yield n << 16
         yield n << 24
 
-def gen_fixtures(bits: int, num: int) -> Iterator[int]:
+def gen_fixtures(bits: int, num: int, dim: int) -> Iterator[int]:
     assert bits <= 32
-    num = int(num * extra_fixtures)
+    num = int(num * extra_fixtures ** (1 / dim))
     # TODO: Switch generator based on bits
     gen = gen_fixtures32()
     mask = (1 << bits) - 1

@@ -373,7 +373,7 @@ def check_rotl():
         sys 1
     """
     binary, pc = assemble_and_link(src)
-    for x in blip.gen_fixtures(32, 200):
+    for x in blip.gen_fixtures(32, 200, 1):
         for y in range(33):
             emu = run_binary(binary, pc, regs={
                 Reg.X: x,
@@ -391,7 +391,7 @@ def check_rotr():
         sys 1
     """
     binary, pc = assemble_and_link(src)
-    for x in blip.gen_fixtures(32, 200):
+    for x in blip.gen_fixtures(32, 200, 1):
         for y in range(33):
             emu = run_binary(binary, pc, regs={
                 Reg.X: x,
@@ -408,8 +408,8 @@ def check_mul_u64():
         sys 1
     """
     binary, pc = assemble_and_link(src)
-    for x in blip.gen_fixtures(32, 200):
-        for y in blip.gen_fixtures(32, 50):
+    for x in blip.gen_fixtures(32, 200, 2):
+        for y in blip.gen_fixtures(32, 50, 2):
             emu = run_binary(binary, pc, regs={
                 Reg.X: x,
                 Reg.Y: y,
@@ -430,8 +430,8 @@ def check_add_u64():
         sys 1
     """
     binary, pc = assemble_and_link(src)
-    for ox in blip.gen_fixtures(32, 200):
-        for oy in blip.gen_fixtures(32, 50):
+    for ox in blip.gen_fixtures(32, 200, 2):
+        for oy in blip.gen_fixtures(32, 50, 2):
             x = ox << 16
             y = oy << 16
             assert x <= 0xffff_ffff_ffff_ffff
@@ -456,8 +456,8 @@ def check_divmod():
         sys 1
     """
     binary, pc = assemble_and_link(src)
-    for x in blip.gen_fixtures(32, 200):
-        for y in blip.gen_fixtures(32, 50):
+    for x in blip.gen_fixtures(32, 200, 2):
+        for y in blip.gen_fixtures(32, 50, 2):
             if y == 0: continue
             emu = run_binary(binary, pc, regs={
                 Reg.X: x,

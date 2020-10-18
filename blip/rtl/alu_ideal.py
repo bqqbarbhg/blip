@@ -49,9 +49,9 @@ def check_fixtures():
         nonlocal num_checks
         for op in isa.AluOp:
             yield alu.op.eq(op)
-            for a in blip.gen_fixtures(32, 24):
+            for a in blip.gen_fixtures(32, 24, 2):
                 yield alu.a.eq(a)
-                for b in blip.gen_fixtures(32, 12):
+                for b in blip.gen_fixtures(32, 12, 2):
                     if op == isa.AluOp.DIV and b == 0: continue
                     yield alu.b.eq(b)
                     yield Delay(1e-9)
