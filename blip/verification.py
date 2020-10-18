@@ -32,11 +32,20 @@ def gen_fixtures32() -> Iterator[int]:
         yield (0xffff_ffff << (31 - n)) & 0xffff_ffff
     for n in range(84):
         yield n*n*n*n
+        yield 0xffff_ffff - n*n*n*n
     for n in range(256):
         yield n
         yield n << 8
         yield n << 16
         yield n << 24
+    for n in range(1600):
+        yield n*n*n
+        yield 0xffff_ffff - n*n*n
+    for n in range(65536):
+        yield n*n
+        yield 0xffff_ffff - n*n
+    for n in range(2**32):
+        yield n
 
 def gen_fixtures(bits: int, num: int, dim: int) -> Iterator[int]:
     assert bits <= 32

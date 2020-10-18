@@ -404,7 +404,7 @@ def check_rotl():
         sys 1
     """
     binary, pc = assemble_and_link(src)
-    for x in blip.gen_fixtures(32, 200, 1):
+    for x in blip.gen_fixtures(32, 300, 1):
         for y in range(33):
             emu = run_binary(binary, pc, regs={
                 Reg.X: x,
@@ -422,7 +422,7 @@ def check_rotr():
         sys 1
     """
     binary, pc = assemble_and_link(src)
-    for x in blip.gen_fixtures(32, 200, 1):
+    for x in blip.gen_fixtures(32, 300, 1):
         for y in range(33):
             emu = run_binary(binary, pc, regs={
                 Reg.X: x,
