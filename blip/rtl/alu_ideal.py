@@ -29,7 +29,7 @@ class AluIdeal(rtl.AluInterface):
                 m.d.comb += self.out.eq(self.a.as_signed() >> (self.b & 31))
             with m.Case(isa.AluOp.MUL):
                 m.d.comb += self.out.eq(self.a * self.b)
-            with m.Case(isa.AluOp.MULI):
+            with m.Case(isa.AluOp.MULS):
                 m.d.comb += self.out.eq(self.a.as_signed() * self.b.as_signed())
             with m.Case(isa.AluOp.DIV):
                 m.d.comb += self.out.eq(self.a // self.b)

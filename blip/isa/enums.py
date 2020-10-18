@@ -27,7 +27,7 @@ class AluOp(IntEnum):
     SHR = 0x5
     SAR = 0x6
     MUL = 0x7
-    MULI = 0x8
+    MULS = 0x8
     DIV = 0x9
     ADD = 0x10
 

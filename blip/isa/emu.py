@@ -89,7 +89,7 @@ def eval_alu(op: AluOp, a: int, b: int) -> (int, int, Flags):
     elif op == AluOp.SHR: r = (a >> (b % 32)) | ((a << ((32 - b) % 32)) << 32)
     elif op == AluOp.SAR: r = (((0 - (a & 0x8000_0000)) | a) >> (b % 32))
     elif op == AluOp.MUL: r = a * b
-    elif op == AluOp.MULI: r = (blip.to_signed(a, 32) * blip.to_signed(b, 32)) & 0xffff_ffff_ffff_ffff
+    elif op == AluOp.MULS: r = (blip.to_signed(a, 32) * blip.to_signed(b, 32)) & 0xffff_ffff_ffff_ffff
     elif op == AluOp.DIV: r = ((a // b) & word) | (a % b) << 32
     elif op == AluOp.ADD: r = a + b
 
@@ -256,8 +256,8 @@ def init_emu_insts():
     inst("sar", "rv", lambda emu,d,v: emu_alui(emu, AluOp.SAR, d, d, v))
     inst("mul", "rr", lambda emu,d,s: emu_alu(emu, AluOp.MUL, d, d, s))
     inst("mul", "rv", lambda emu,d,v: emu_alui(emu, AluOp.MUL, d, d, v))
-    inst("muli", "rr", lambda emu,d,s: emu_alu(emu, AluOp.MULI, d, d, s))
-    inst("muli", "rv", lambda emu,d,v: emu_alui(emu, AluOp.MULI, d, d, v))
+    inst("muls", "rr", lambda emu,d,s: emu_alu(emu, AluOp.MULS, d, d, s))
+    inst("muls", "rv", lambda emu,d,v: emu_alui(emu, AluOp.MULS, d, d, v))
     inst("div", "rr", lambda emu,d,s: emu_alu(emu, AluOp.DIV, d, d, s))
     inst("div", "rv", lambda emu,d,v: emu_alui(emu, AluOp.DIV, d, d, v))
     inst("bnt", "v", lambda emu,v: emu_bcc(emu, False, Cond.T, v))
@@ -337,23 +337,23 @@ def check_simple():
     assert emu.regs[Reg.Z] == 3
 
 @blip.check
-def check_muli_simple():
+def check_muls_simple():
     src = """
         mov A, 2
         mov B, 3
-        muli A, B
+        muls A, B
         ext B
         mov C, -4
         mov D, 5
-        muli C, D
+        muls C, D
         ext D
         mov X, 6
         mov Y, -7
-        muli X, Y
+        muls X, Y
         ext Y
         mov Z, -8
         mov W, -9
-        muli Z, W
+        muls Z, W
         ext W
         sys 1
     """
@@ -452,9 +452,9 @@ def check_mul_u64():
             assert emu.regs[Reg.Y] == ref_hi
 
 @blip.check
-def check_mul_i64():
+def check_mul_s64():
     src = """
-        muli X, Y
+        muls X, Y
         ext Y
         sys 1
     """
